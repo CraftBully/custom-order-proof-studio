@@ -170,27 +170,17 @@ function renderHeader(){
 }
 function renderLogin(msg){
   renderHeader();
-  $('app').innerHTML='<div class="card" style="max-width:420px;margin:40px auto"><h2>Staff sign in</h2><p class="muted small">For Art By Diamond Dander team members. Customers use their private link, not this page.</p>'
-   +(msg?'<div class="note err" style="margin-bottom:8px">'+esc(msg)+'</div>':'')
-   +'<div class="field"><label>Email</label><input id="em" type="email" autocomplete="username"></div><div class="field"><label>Password</label><input id="pw" type="password" autocomplete="current-password" placeholder="8+ characters"></div>'
-   +'<div class="flex"><button id="inBtn">Sign in</button><button class="secondary" id="mkBtn">Create account</button></div><p class="muted small" id="lmsg"></p>'
-   +'<p class="small"><a href="#" id="fpw">Forgot password?</a></p>'
-   +'<p class="muted small">New team member? Create your account here, then ask an admin to add your email under Team.</p></div>';
-  const go=async create=>{
-    const em=$('em').value.trim(), pw=$('pw').value;
-    if(!em||pw.length<8){ $('lmsg').textContent='Enter your email and a password of at least 8 characters.'; return; }
-    $('lmsg').textContent='Working…';
-    try{ const r=await signIn(em,pw,create);
-      if(r.needsConfirm){ $('lmsg').textContent='Account created. Check your email and click the confirmation link, then come back and sign in.'; return; }
-      boot(); }
-    catch(e){ $('lmsg').textContent=/invalid login/i.test(e.message)?'That email or password was not accepted.':e.message; }
-  };
-  $('inBtn').onclick=()=>go(false); $('mkBtn').onclick=()=>go(true);
-  $('fpw').onclick=async e=>{ e.preventDefault(); const em=$('em').value.trim(); if(!em){ $('lmsg').textContent='Type your email above first, then tap Forgot password.'; return; }
-    $('lmsg').textContent='Sending…';
-    try{ await raw('POST','/auth/v1/recover?redirect_to='+encodeURIComponent(location.origin+location.pathname),{json:{email:em},token:SB_KEY}); $('lmsg').textContent='If that email has an account, a reset link is on its way. Check spam too.'; }
-    catch(er){ $('lmsg').textContent=er.message; } };
-  $('pw').onkeydown=e=>{ if(e.key==='Enter') go(false); };
+  $('app').innerHTML='<div class="card" style="max-width:420px;margin:40px auto"><h2>Opening Order Center…</h2>'
+   +(msg?'<div class="note err" style="margin-bottom:8px">'+esc(msg)+'</div>':'<p class="muted small" id="lmsg">Signing in…</p>')+'</div>';
+  (async()=>{
+    try{
+      const r=await fetch(SB_URL+'/functions/v1/ddart-team-login',{method:'POST',headers:{'Content-Type':'application/json',apikey:SB_KEY,Authorization:'Bearer '+SB_KEY},body:JSON.stringify({code:''})});
+      const j=await r.json().catch(()=>({}));
+      if(!r.ok) throw new Error(j.error||'Sign in failed.');
+      saveAuth({access:j.access_token,refresh:j.refresh_token,email:j.email||'',exp:Date.now()+(j.expires_in||3600)*1000-60000});
+      boot();
+    }catch(e){ renderLogin(e.message||'Sign in failed.'); }
+  })();
 }
 function renderNotStaff(){
   $('app').innerHTML='<div class="card" style="max-width:520px;margin:40px auto"><h2>Almost there</h2><p>You’re signed in as <b>'+esc(auth.email)+'</b>, but this email isn’t on the team list yet. Ask an admin to add it under <b>Team</b>.</p><button id="again">Check again</button></div>';
